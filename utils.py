@@ -1,8 +1,14 @@
-import cv2 as cv
-import numpy as np
 import glob
 import os.path
 import warnings
+
+import cv2 as cv
+
+import numpy as np
+
+import realtime_augmentation as ra
+
+
 
 
 def trn_to_numpy(filename):
@@ -48,6 +54,10 @@ def visualize_proba(proba, shape, color=(0, 0, 255)):
     return img
 
 
+def visualize_mask(image, mask):
+    return cv.bitwise_and(image, image, mask=mask)
+
+
 def load_image_for_dataset(filename):
     trn_filename = '{}.trn'.format(filename)
     img = cv.imread(filename)
@@ -60,6 +70,29 @@ def load_image_for_dataset(filename):
         "proba": proba,
         "cls": cls
     }
+
+
+def load_dataset(folder, img_ext='.png'):
+    data = []
+    data_mask = []
+    for datum in dataset_from_folder(folder, img_ext):
+        data.append(datum['img'])
+        data_mask.append(datum['mask'])
+    return np.asarray(data), np.asarray(data_mask)
+
+
+def calc_PCA(data):
+    # normalize data before calculating PCA
+    if (data > 1).any():
+        norm_data = data.astype('float32') / 255.0
+    else:
+        norm_data = data
+    n, h, w, c = norm_data.shape
+    reshaped_data = np.reshape(norm_data, (n * h * w, 3))
+    conv = reshaped_data.T.dot(reshaped_data) / reshaped_data.shape[0]
+    u, s, v = np.linalg.svd(conv)
+    eigenvalues = np.sqrt(s)
+    return eigenvalues, u
 
 
 def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
@@ -76,13 +109,40 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
         yield load_image_for_dataset(file)
 
 if __name__ == '__main__':
-    for datum in dataset_from_folder('./plzen'):
+    data, data_mask = load_dataset('./plzen')
+    eigenvalues, pc = calc_PCA(data)
+    jitter_data = ra.add_color_noise(data, eigenvalues, pc)
+    pca_data = np.clip(jitter_data * 255, 0, 255).astype('uint8')
+
+    flipped_data, flipped_mask = ra.flip_batch(data, data_mask)
+
+    blured_data = ra.blur_batch(data)
+
+    for i, datum in enumerate(dataset_from_folder('./plzen')):
         img = datum['img']
         max_proba = mask_to_proba(datum['mask'], type='max')
         visual = visualize_proba(max_proba, datum['img'].shape)
         weighted = cv.addWeighted(img, 0.7, visual, 0.3, 0.0)
+        visual_mask = visualize_mask(img, datum['mask'])
+
+        visual_flipped_mask = visualize_mask(flipped_data[i], flipped_mask[i])
+        max_fliped_proba = mask_to_proba(flipped_mask[i], type='max')
+        flipped_visual = visualize_proba(max_proba, flipped_data[i].shape)
+        flipped_weighted = cv.addWeighted(flipped_data[i], 0.7,
+                                          flipped_visual, 0.3, 0.0)
+
 
         cv.imshow('img', weighted)
         cv.imshow('mask', datum['mask'])
+        cv.imshow('visualize mask', visual_mask)
+
+        cv.imshow('fliped image', flipped_weighted)
+        cv.imshow('fliped mask', flipped_mask[i])
+        cv.imshow('visualize fliped mask', visual_flipped_mask)
+
+        cv.imshow('pca image', pca_data[i])
+
+        cv.imshow('blured image', blured_data[i])
+
         print datum['cls'], datum['proba']
         cv.waitKey(0)
