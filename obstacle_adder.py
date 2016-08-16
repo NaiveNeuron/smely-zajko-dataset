@@ -1,10 +1,8 @@
 import glob
-
 import cv2 as cv
-
 import numpy as np
-
 import utils
+from random import getrandbits
 
 
 img = None
@@ -113,7 +111,7 @@ if __name__ == '__main__':
                     obs = cv.flip(obs, 1)
                     obs_mask = cv.flip(obs_mask, 1)
                 if k == ord('s'):
-                    filename = './with_obs/{}_obs.png'.format(i)
+                    filename = './with_obs/{}_obs.png'.format(getrandbits(32))
                     cv.imwrite(filename, new_img)
                     numpy_to_trn(filename, new_mask)
                     break
