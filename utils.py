@@ -1,14 +1,8 @@
 import glob
 import os.path
 import warnings
-
 import cv2 as cv
-
 import numpy as np
-
-import realtime_augmentation as ra
-
-
 
 
 def trn_to_numpy(filename):
@@ -20,6 +14,14 @@ def trn_to_numpy(filename):
         numpy_array = np.asarray(items, np.uint8) * 255
 
         return numpy_array.reshape(img.shape[0], img.shape[1])
+
+
+def numpy_to_trn(filename, mask):
+    filename_trn = "{}.trn".format(filename)
+    _, mask = cv.threshold(mask, 1, 1, cv.THRESH_BINARY)
+    f = open(filename_trn, 'w+')
+    f.write(' '.join(str(e) for e in mask.flatten().tolist()))
+    f.close
 
 
 def xml_to_numpy(filename):
@@ -95,6 +97,33 @@ def calc_PCA(data):
     return eigenvalues, u
 
 
+def blur_batch(batch):
+    blured_batch = []
+    for image in batch:
+        gray_im = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+        blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var()/1000.
+        blured_im = cv.GaussianBlur(image, (3, 3), blur_amount, blur_amount)
+        blured_batch.append(blured_im)
+    return np.asarray(blured_batch)
+
+
+def flip_batch(batch, batch_mask):
+    batch_fliped = batch[:, :, ::-1, :]
+    batch_mask_fliped = batch_mask[:, :, ::-1]
+    return batch_fliped, batch_mask_fliped
+
+
+def add_color_noise(batch, eigenvalues, eigenvectors):
+    if (batch > 1).any():
+        norm_data = batch.astype('float32') / 255.0
+    else:
+        norm_data = batch
+    alpha = np.random.randn(norm_data.shape[0], 3) * 0.1
+    noise = eigenvectors.dot((eigenvalues * alpha).T)
+    norm_data += noise[:, np.newaxis, np.newaxis, :].T
+    return norm_data
+
+
 def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
     glob_selector = '{}/*{}'.format(folder, img_ext)
     for file in glob.glob(glob_selector):
@@ -111,12 +140,12 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
 if __name__ == '__main__':
     data, data_mask = load_dataset('./plzen')
     eigenvalues, pc = calc_PCA(data)
-    jitter_data = ra.add_color_noise(data, eigenvalues, pc)
+    jitter_data = add_color_noise(data, eigenvalues, pc)
     pca_data = np.clip(jitter_data * 255, 0, 255).astype('uint8')
 
-    flipped_data, flipped_mask = ra.flip_batch(data, data_mask)
+    flipped_data, flipped_mask = flip_batch(data, data_mask)
 
-    blured_data = ra.blur_batch(data)
+    blured_data = blur_batch(data)
 
     for i, datum in enumerate(dataset_from_folder('./plzen')):
         img = datum['img']

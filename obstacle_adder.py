@@ -13,13 +13,6 @@ obs = None
 obs_mask = None
 
 
-def numpy_to_trn(filename, mask):
-    filename_trn = "{}.trn".format(filename)
-    _, mask = cv.threshold(mask, 1, 1, cv.THRESH_BINARY)
-    f = open(filename_trn, 'w+')
-    f.write(' '.join(str(e) for e in mask.flatten().tolist()))
-    f.close
-
 
 def obstacles_from_folder(folder, img_ext='.png'):
     glob_selector = '{}/*{}'.format(folder, img_ext)
@@ -113,7 +106,7 @@ if __name__ == '__main__':
                 if k == ord('s'):
                     filename = './with_obs/{}_obs.png'.format(getrandbits(32))
                     cv.imwrite(filename, new_img)
-                    numpy_to_trn(filename, new_mask)
+                    utils.numpy_to_trn(filename, new_mask)
                     break
                 # 27 - escape
                 if k == 27:
