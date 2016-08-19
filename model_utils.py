@@ -14,7 +14,7 @@ def prepare_pixelized_dataset(dataset, window_x=5, window_y=5,
         Xs.append(prepare_pixelized_image(img, window_x, window_y))
         if mask is not None:
             ms = prepare_pixelized_image(mask, window_x, window_y)
-            ys.append(ms.mean(axis=1) > 0.5)
+            ys.append((ms.mean(axis=1) > 0.5).astype(np.uint))
     Xs = np.asarray(Xs)
     ys = np.squeeze(np.asarray(ys)).reshape(-1)
     return Xs.reshape(-1, Xs.shape[-1]), y_applied_function(ys)
@@ -44,7 +44,7 @@ def plot_history(history):
 
 def train_and_eval(model, X_train, y_train, X_test, y_test,
                    batch_size=128, nb_epoch=30,
-                   verbose=0, score_name='MSE'):
+                   verbose=0, score_name='MSE', score_format='{}'):
 
     print('Training architecture: {}'.format(model.arch))
     history = model.fit(X_train, y_train,
@@ -55,5 +55,6 @@ def train_and_eval(model, X_train, y_train, X_test, y_test,
 
     print('\nComputing test score.')
     score = model.evaluate(X_test, y_test, verbose=0)
-    print('Test {}: {}'.format(score_name, score))
+    msg = 'Test {}: ' + score_format
+    print(msg.format(score_name, score))
     return history

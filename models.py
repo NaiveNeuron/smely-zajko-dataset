@@ -4,7 +4,11 @@ from keras.optimizers import SGD, Adam, RMSprop
 
 
 def mlp(n_input=75, architecture=[(8, 'sigmoid'), (1, 'sigmoid')],
-        lr=0.01):
+        lr=0.01, optimizer=None, loss='mse', metrics=None):
+
+    if metrics is None:
+        metrics = []
+
     model = Sequential()
 
     for i, l in enumerate(architecture):
@@ -16,7 +20,9 @@ def mlp(n_input=75, architecture=[(8, 'sigmoid'), (1, 'sigmoid')],
 
         model.add(Activation(f_act))
 
-    rms = RMSprop(lr=lr)
-    model.compile(loss='mse', optimizer=rms)
+    if optimizer is None:
+        optimizer = RMSprop(lr=lr)
+
+    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
     model.arch = architecture
     return model
