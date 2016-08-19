@@ -14,9 +14,9 @@ def prepare_pixelized_dataset(dataset, window_x=5, window_y=5,
         Xs.append(prepare_pixelized_image(img, window_x, window_y))
         if mask is not None:
             ms = prepare_pixelized_image(mask, window_x, window_y)
-            ys.append((ms.mean(axis=1) > 0.5).astype(np.uint))
+            ys.append((ms.mean(axis=1) > 0.5))
     Xs = np.asarray(Xs)
-    ys = np.squeeze(np.asarray(ys)).reshape(-1)
+    ys = np.squeeze(np.asarray(ys, dtype='int32')).reshape(-1)
     return Xs.reshape(-1, Xs.shape[-1]), y_applied_function(ys)
 
 

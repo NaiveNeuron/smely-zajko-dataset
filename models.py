@@ -1,6 +1,6 @@
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
-from keras.optimizers import SGD, Adam, RMSprop
+from keras.optimizers import RMSprop
 
 
 def mlp(n_input=75, architecture=[(8, 'sigmoid'), (1, 'sigmoid')],
