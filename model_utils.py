@@ -1,7 +1,6 @@
 from __future__ import print_function
-
-import numpy as np
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 def prepare_pixelized_dataset(dataset, window_x=5, window_y=5,
@@ -11,25 +10,26 @@ def prepare_pixelized_dataset(dataset, window_x=5, window_y=5,
     for datum in dataset:
         img = datum['img']
         mask = datum['mask']
-        for selection, mask_selection in prepare_pixelized_image(img, mask):
-            Xs.append(selection)
-            ys.append(mask_selection)
-    return np.array(Xs), y_applied_function(ys)
+        Xs.append(prepare_pixelized_image(img, window_x, window_y))
+        if mask is not None:
+            ms = prepare_pixelized_image(mask, window_x, window_y)
+            ys.append(ms.mean(axis=1) > 0.5)
+    Xs = np.asarray(Xs)
+    ys = np.squeeze(np.asarray(ys)).reshape(-1)
+    return Xs.reshape(-1, Xs.shape[-1]), y_applied_function(ys)
 
 
-def prepare_pixelized_image(img, mask=None, window_x=5, window_y=5):
-    h, w, ch = img.shape
-    for j in range(w//window_y - 1):
-        for i in range(h//window_x - 1):
-            selection = img[i*window_x:(i+1)*window_x,
-                            j*window_y:(j+1)*window_y] / 255.0
-            selection = selection.reshape(-1)
-            mask_selection = None
-            if mask is not None:
-                mask_selection = mask[i*window_x:(i+1)*window_x,
-                                      j*window_y:(j+1)*window_y] / 255.0
-                mask_selection = int(mask_selection.mean() > 0.5)
-            yield selection, mask_selection
+def prepare_pixelized_image(img, window_x=5, window_y=5):
+    h, w = img.shape[:2]
+    num_windows_x = w//window_x
+    num_windows_y = h//window_y
+    if img.ndim == 3:
+        res = img.reshape(num_windows_y, window_x, -1, window_y, img.shape[-1])
+        res = res.swapaxes(1, 2).reshape(-1, window_x, window_y, img.shape[-1])
+    else:
+        res = img.reshape(num_windows_y, window_x, -1, window_y)
+        res = res.swapaxes(1, 2).reshape(-1, window_x, window_y)
+    return res.reshape(num_windows_x * num_windows_y, -1) / 255.0
 
 
 def plot_history(history):
