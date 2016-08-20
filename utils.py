@@ -16,12 +16,9 @@ def trn_to_numpy(filename):
         return numpy_array.reshape(img.shape[0], img.shape[1])
 
 
-def numpy_to_trn(filename, mask):
-    filename_trn = "{}.trn".format(filename)
+def numpy_to_trn(mask):
     _, mask = cv.threshold(mask, 1, 1, cv.THRESH_BINARY)
-    f = open(filename_trn, 'w+')
-    f.write(' '.join(str(e) for e in mask.flatten().tolist()))
-    f.close
+    return ' '.join(str(e) for e in mask.flatten().tolist())
 
 
 def xml_to_numpy(filename):
@@ -56,6 +53,13 @@ def visualize_proba(proba, shape, color=(0, 0, 255)):
     return img
 
 
+def visualize_labels(img, mask):
+    max_proba = mask_to_proba(mask, type='max')
+    visual = visualize_proba(max_proba, img.shape)
+    weighted = cv.addWeighted(img, 0.7, visual, 0.3, 0.0)
+    return weighted
+
+
 def visualize_mask(image, mask):
     return cv.bitwise_and(image, image, mask=mask)
 
@@ -74,7 +78,7 @@ def load_image_for_dataset(filename):
     }
 
 
-def load_dataset(folder, img_ext='.png'):
+def load_dataset_as_numpy(folder, img_ext='.png'):
     data = []
     data_mask = []
     for datum in dataset_from_folder(folder, img_ext):
@@ -101,7 +105,7 @@ def blur_batch(batch):
     blured_batch = []
     for image in batch:
         gray_im = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-        blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var()/1000.
+        blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
         blured_im = cv.GaussianBlur(image, (3, 3), blur_amount, blur_amount)
         blured_batch.append(blured_im)
     return np.asarray(blured_batch)
@@ -136,42 +140,3 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
             warnings.warn(msg)
             continue
         yield load_image_for_dataset(file)
-
-if __name__ == '__main__':
-    data, data_mask = load_dataset('./plzen')
-    eigenvalues, pc = calc_PCA(data)
-    jitter_data = add_color_noise(data, eigenvalues, pc)
-    pca_data = np.clip(jitter_data * 255, 0, 255).astype('uint8')
-
-    flipped_data, flipped_mask = flip_batch(data, data_mask)
-
-    blured_data = blur_batch(data)
-
-    for i, datum in enumerate(dataset_from_folder('./plzen')):
-        img = datum['img']
-        max_proba = mask_to_proba(datum['mask'], type='max')
-        visual = visualize_proba(max_proba, datum['img'].shape)
-        weighted = cv.addWeighted(img, 0.7, visual, 0.3, 0.0)
-        visual_mask = visualize_mask(img, datum['mask'])
-
-        visual_flipped_mask = visualize_mask(flipped_data[i], flipped_mask[i])
-        max_fliped_proba = mask_to_proba(flipped_mask[i], type='max')
-        flipped_visual = visualize_proba(max_proba, flipped_data[i].shape)
-        flipped_weighted = cv.addWeighted(flipped_data[i], 0.7,
-                                          flipped_visual, 0.3, 0.0)
-
-
-        cv.imshow('img', weighted)
-        cv.imshow('mask', datum['mask'])
-        cv.imshow('visualize mask', visual_mask)
-
-        cv.imshow('fliped image', flipped_weighted)
-        cv.imshow('fliped mask', flipped_mask[i])
-        cv.imshow('visualize fliped mask', visual_flipped_mask)
-
-        cv.imshow('pca image', pca_data[i])
-
-        cv.imshow('blured image', blured_data[i])
-
-        print datum['cls'], datum['proba']
-        cv.waitKey(0)
