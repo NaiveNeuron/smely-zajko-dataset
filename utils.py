@@ -122,9 +122,9 @@ def add_color_noise(batch, eigenvalues, eigenvectors):
         norm_data = batch.astype('float32') / 255.0
     else:
         norm_data = batch
-    alpha = np.random.randn(norm_data.shape[0], 3) * 0.1
+    alpha = np.random.randn(3) * 0.1
     noise = eigenvectors.dot((eigenvalues * alpha).T)
-    norm_data += noise[:, np.newaxis, np.newaxis, :].T
+    norm_data += noise
     return norm_data
 
 
@@ -140,3 +140,23 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
             warnings.warn(msg)
             continue
         yield load_image_for_dataset(file)
+
+
+def dataset_generator(folder, eigenval, eigenvectors,
+                      img_ext='.png', mask_ext='.trn'):
+    while True:
+        glob_selector = '{}/*{}'.format(folder, img_ext)
+        for file in glob.glob(glob_selector):
+            mask_filename = '{}{}'.format(file, mask_ext)
+            if not os.path.exists(mask_filename):
+                continue
+            arr = load_image_for_dataset(file)
+            gray_im = cv.cvtColor(arr['img'], cv.COLOR_BGR2GRAY)
+            blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
+            blured_im = cv.GaussianBlur(arr['img'], (3, 3),
+                                        blur_amount, blur_amount)
+            pca_im = add_color_noise(arr['img'], eigenval, eigenvectors)
+            x = [arr['img'], cv.flip(arr['img'], 1), blured_im, pca_im]
+            y = arr['cls']
+            for i in range(4):
+                yield x[i], y

@@ -58,3 +58,21 @@ def train_and_eval(model, X_train, y_train, X_test, y_test,
     msg = 'Test {}: ' + score_format
     print(msg.format(score_name, score))
     return history
+
+
+def train_and_eval_generator(model, generator, test_generator,
+                             samples_per_epoch_train, samples_per_epoch_test,
+                             val_data=None, nb_epoch=30, verbose=0,
+                             score_name='MSE', score_format='{}'):
+
+    print('Training architecture: {}'.format(model.arch))
+    history = model.fit_generator(generator, validation_data=val_data,
+                                  samples_per_epoch=samples_per_epoch_train,
+                                  nb_epoch=nb_epoch, verbose=verbose)
+    print('Finished training.')
+
+    print('\nComputing test score.')
+    score = model.evaluate_generator(test_generator, samples_per_epoch_test)
+    msg = 'Test {}: ' + score_format
+    print(msg.format(score_name, score))
+    return history
