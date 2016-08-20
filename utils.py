@@ -1,8 +1,8 @@
-import cv2 as cv
-import numpy as np
 import glob
 import os.path
 import warnings
+import cv2 as cv
+import numpy as np
 
 
 def trn_to_numpy(filename):
@@ -14,6 +14,11 @@ def trn_to_numpy(filename):
         numpy_array = np.asarray(items, np.uint8) * 255
 
         return numpy_array.reshape(img.shape[0], img.shape[1])
+
+
+def numpy_to_trn(mask):
+    _, mask = cv.threshold(mask, 1, 1, cv.THRESH_BINARY)
+    return ' '.join(str(e) for e in mask.flatten().tolist())
 
 
 def xml_to_numpy(filename):
@@ -48,6 +53,17 @@ def visualize_proba(proba, shape, color=(0, 0, 255)):
     return img
 
 
+def visualize_labels(img, mask):
+    max_proba = mask_to_proba(mask, type='max')
+    visual = visualize_proba(max_proba, img.shape)
+    weighted = cv.addWeighted(img, 0.7, visual, 0.3, 0.0)
+    return weighted
+
+
+def visualize_mask(image, mask):
+    return cv.bitwise_and(image, image, mask=mask)
+
+
 def load_image_for_dataset(filename):
     trn_filename = '{}.trn'.format(filename)
     img = cv.imread(filename)
@@ -62,6 +78,56 @@ def load_image_for_dataset(filename):
     }
 
 
+def load_dataset_as_numpy(folder, img_ext='.png'):
+    data = []
+    data_mask = []
+    for datum in dataset_from_folder(folder, img_ext):
+        data.append(datum['img'])
+        data_mask.append(datum['mask'])
+    return np.asarray(data), np.asarray(data_mask)
+
+
+def calc_PCA(data):
+    # normalize data before calculating PCA
+    if (data > 1).any():
+        norm_data = data.astype('float32') / 255.0
+    else:
+        norm_data = data
+    n, h, w, c = norm_data.shape
+    reshaped_data = np.reshape(norm_data, (n * h * w, 3))
+    conv = reshaped_data.T.dot(reshaped_data) / reshaped_data.shape[0]
+    u, s, v = np.linalg.svd(conv)
+    eigenvalues = np.sqrt(s)
+    return eigenvalues, u
+
+
+def blur_batch(batch):
+    blured_batch = []
+    for image in batch:
+        gray_im = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+        blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
+        blured_im = cv.GaussianBlur(image, (3, 3), blur_amount, blur_amount)
+        blured_batch.append(blured_im)
+    return np.asarray(blured_batch)
+
+
+def flip_batch(batch, batch_mask):
+    batch_fliped = batch[:, :, ::-1, :]
+    batch_mask_fliped = batch_mask[:, :, ::-1]
+    return batch_fliped, batch_mask_fliped
+
+
+def add_color_noise(batch, eigenvalues, eigenvectors):
+    if (batch > 1).any():
+        norm_data = batch.astype('float32') / 255.0
+    else:
+        norm_data = batch
+    alpha = np.random.randn(norm_data.shape[0], 3) * 0.1
+    noise = eigenvectors.dot((eigenvalues * alpha).T)
+    norm_data += noise[:, np.newaxis, np.newaxis, :].T
+    return norm_data
+
+
 def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
     glob_selector = '{}/*{}'.format(folder, img_ext)
     for file in glob.glob(glob_selector):
@@ -74,15 +140,3 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
             warnings.warn(msg)
             continue
         yield load_image_for_dataset(file)
-
-if __name__ == '__main__':
-    for datum in dataset_from_folder('./plzen'):
-        img = datum['img']
-        max_proba = mask_to_proba(datum['mask'], type='max')
-        visual = visualize_proba(max_proba, datum['img'].shape)
-        weighted = cv.addWeighted(img, 0.7, visual, 0.3, 0.0)
-
-        cv.imshow('img', weighted)
-        cv.imshow('mask', datum['mask'])
-        print datum['cls'], datum['proba']
-        cv.waitKey(0)
