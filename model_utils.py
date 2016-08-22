@@ -5,19 +5,26 @@ import numpy as np
 
 
 def prepare_pixelized_dataset(dataset, window_x=5, window_y=5,
-                              y_applied_function=np.asarray):
+                              y_applied_function=np.asarray,
+                              image_by_image=False):
     Xs = []
     ys = []
+    Zs = []
     for datum in dataset:
         img = datum['img']
         mask = datum['mask']
         Xs.append(prepare_pixelized_image(img, window_x, window_y))
+        if image_by_image:
+            Zs.append(img)
         if mask is not None:
             ms = prepare_pixelized_image(mask, window_x, window_y)
-            ys.append((ms.mean(axis=1) > 0.5))
+            nums = np.asarray((ms.mean(axis=1) > 0.5), dtype='int32')
+            ys.append(y_applied_function(nums))
     Xs = np.asarray(Xs)
-    ys = np.squeeze(np.asarray(ys, dtype='int32')).reshape(-1)
-    return Xs.reshape(-1, Xs.shape[-1]), y_applied_function(ys)
+    ys = np.squeeze(ys)
+    if image_by_image:
+        return Xs, ys, Zs
+    return Xs.reshape(-1, Xs.shape[-1]), ys.reshape(-1, ys.shape[-1])
 
 
 def prepare_pixelized_image(img, window_x=5, window_y=5):

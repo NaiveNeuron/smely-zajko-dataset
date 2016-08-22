@@ -1,23 +1,23 @@
 from __future__ import print_function
 
-import utils
-from model_utils import (prepare_pixelized_dataset, train_and_eval)
+from utils import dataset_from_folder, bit_to_two_cls
+from model_utils import prepare_pixelized_dataset, train_and_eval
 import models
-from keras.utils.np_utils import to_categorical
 
 import numpy as np
 np.random.seed(1337)  # for reproducibility
 
+
 batch_size = 128
 nb_epoch = 30
 
-dataset = utils.dataset_from_folder('./plzen/train')
+dataset = dataset_from_folder('./plzen/train')
 X_train, y_train = prepare_pixelized_dataset(dataset,
-                                             y_applied_function=to_categorical)
+                                             y_applied_function=bit_to_two_cls)
 
-dataset = utils.dataset_from_folder('./plzen/test')
+dataset = dataset_from_folder('./plzen/test')
 X_test, y_test = prepare_pixelized_dataset(dataset,
-                                           y_applied_function=to_categorical)
+                                           y_applied_function=bit_to_two_cls)
 
 print('\n')
 model = models.mlp(n_input=75, architecture=[(8, 'sigmoid'), (2, 'softmax')],
