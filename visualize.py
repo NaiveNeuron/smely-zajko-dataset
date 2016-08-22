@@ -1,19 +1,18 @@
 from __future__ import print_function
 
-import utils
+from utils import dataset_from_folder, bit_to_two_cls
 from model_utils import prepare_pixelized_dataset
 import models
-from keras.utils.np_utils import to_categorical
 
 import cv2 as cv
 
 import numpy as np
 np.random.seed(1337)  # for reproducibility
 
-dataset = utils.dataset_from_folder('./plzen/test')
+dataset = dataset_from_folder('./plzen/test')
 
 X_t, y_t, Z_t = prepare_pixelized_dataset(dataset,
-                                          y_applied_function=to_categorical,
+                                          y_applied_function=bit_to_two_cls,
                                           image_by_image=True)
 
 model = models.mlp(n_input=75, architecture=[(12, 'sigmoid'), (1, 'sigmoid')])
