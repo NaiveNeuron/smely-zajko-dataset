@@ -3,6 +3,7 @@ import os.path
 import warnings
 import cv2 as cv
 import numpy as np
+from keras.utils.np_utils import to_categorical
 
 
 def trn_to_numpy(filename):
@@ -140,3 +141,7 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
             warnings.warn(msg)
             continue
         yield load_image_for_dataset(file)
+
+
+def bit_to_two_cls(x):
+    return to_categorical(x, nb_classes=2)
