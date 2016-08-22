@@ -33,12 +33,15 @@ def prepare_pixelized_image(img, window_x=5, window_y=5):
     return res.reshape(num_windows_x * num_windows_y, -1) / 255.0
 
 
-def plot_history(history):
-    plt.plot(history.history['loss'], 'o', label='loss')
-    plt.plot(history.history['val_loss'], '-go', label='validation loss')
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.legend()
+def plot_history(history, plots=[['loss', 'val_loss']], format=[['o', 'o']]):
+    for i, metrics in enumerate(plots):
+        for j, metric in enumerate(metrics):
+            plt.plot(history.history[metric], format[i][j], label=metric)
+        plt.xlabel('epoch')
+        plt.ylabel(metric)
+        plt.legend()
+        if i != len(plots)-1:
+            plt.figure()
     plt.show()
 
 
