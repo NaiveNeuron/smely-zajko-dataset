@@ -3,6 +3,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Activation, Dense, Dropout, Flatten
 from keras.models import Sequential
 from keras.optimizers import Adam
+from keras.regularizers import l2, activity_l2
 import model_utils
 import numpy as np
 import utils
@@ -27,16 +28,9 @@ utils.show_dataset_samples(X_train, y_train)
 
 model = Sequential()
 
-model.add(Convolution2D(8, 5, 5, border_mode='valid',
+model.add(Convolution2D(16, 5, 5, border_mode='valid',
                         input_shape=(3, 240, 240),
                         subsample=(2, 2)))
-model.add(Activation('relu'))
-model.add(Convolution2D(8, 3, 3, border_mode='valid', subsample=(2, 2)))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.5))
-
-model.add(Convolution2D(16, 3, 3, border_mode='valid'))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 3, 3, border_mode='valid'))
 model.add(Activation('relu'))
@@ -44,15 +38,12 @@ model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.5))
 
 model.add(Flatten())
-model.add(Dense(384))
+model.add(Dense(256, W_regularizer=l2(0.01),
+                activity_regularizer=activity_l2(0.01)))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
-
-model.add(Dense(100))
-model.add(Activation('relu'))
-model.add(Dropout(0.5))
-
-model.add(Dense(11))
+model.add(Dense(11, W_regularizer=l2(0.01),
+                activity_regularizer=activity_l2(0.01)))
 model.add(Activation('softmax'))
 
 adam = Adam(lr=0.001)
@@ -64,9 +55,6 @@ history = model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch,
 
 model_utils.plot_history(history, [['loss', 'val_loss'], ['acc', 'val_acc']],
                                   [['o', 'o'], ['-o', '-go']])
-
-weights = model.layers[0].get_weights()[0]
-model_utils.show_weights(weights)
 
 loss, acc = model.evaluate(X_test, y_test, verbose=1)
 print("\nloss: {:.4}, acc: {:.4}".format(loss, acc))

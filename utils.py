@@ -143,8 +143,8 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
         yield load_image_for_dataset(file)
 
 
-def load_augmented_dataset(folder, eigenval, eigenvectors,
-                           img_ext='.png', mask_ext='.trn'):
+def load_augmented_dataset(folder, eigenval, eigenvectors, img_ext='.png',
+                           mask_ext='.trn', resize=(240, 240)):
     X = []
     y = []
     glob_selector = '{}/*{}'.format(folder, img_ext)
@@ -153,7 +153,7 @@ def load_augmented_dataset(folder, eigenval, eigenvectors,
         if not os.path.exists(mask_filename):
             continue
         arr = load_image_for_dataset(file)
-        arr['img'] = cv.resize(arr['img'], (240, 240))
+        arr['img'] = cv.resize(arr['img'], resize)
         gray_im = cv.cvtColor(arr['img'], cv.COLOR_BGR2GRAY)
         blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
 
@@ -169,12 +169,78 @@ def load_augmented_dataset(folder, eigenval, eigenvectors,
         X.append((cv.flip(arr['img'], 1)/255.0).T)
         c = np.zeros(11)
         if arr['cls'] == -1:
-            c[10] == -1
+            c[10] = -1
         else:
             c[arr['cls']] = 1
         for i in range(4):
             y.append(c)
     return np.array(X), np.array(y)
+
+
+def blur_image(image):
+    gray_im = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
+    return cv.GaussianBlur(image, (3, 3), blur_amount, blur_amount)
+
+
+def flip_data(data):
+    flip_im = cv.flip(data['img'], 1)
+    flip_mask = cv.flip(data['mask'], 1)
+    flip_proba = mask_to_proba(flip_mask)
+    flip_cls = np.argmax(flip_proba) if np.max(flip_proba) != 0 else -1
+    return {
+        "img": flip_im,
+        "mask": flip_mask,
+        "proba": flip_proba,
+        "cls": flip_cls
+    }
+
+
+def format_dict_to_dataset(img, mask, proba, cls):
+    return {
+        "img": img,
+        "mask": mask,
+        "proba": proba,
+        "cls": cls
+    }
+
+
+def augmented_dataset_from_folder(folder, eigenval, eigenvectors,
+                                  img_ext='.png', mask_ext='.trn',
+                                  resize=(240, 240)):
+    glob_selector = '{}/*{}'.format(folder, img_ext)
+    for file in glob.glob(glob_selector):
+        x = []
+        mask_filename = '{}{}'.format(file, mask_ext)
+        if not os.path.exists(mask_filename):
+            continue
+
+        arr = load_image_for_dataset(file)
+        if resize is not None:
+            arr['img'] = cv.resize(arr['img'], resize)
+
+        blured_im = (blur_image(arr['img']))
+        pca_im = add_color_noise(arr['img'], eigenval, eigenvectors)
+
+        # original image dict
+        x.append(arr)
+
+        # sligtly blured imaged
+        dict_blured = format_dict_to_dataset(blured_im, arr['mask'],
+                                             arr['proba'], arr['cls'])
+        x.append(dict_blured)
+
+        # imaged with changed color values based on PCA of dataset
+        pca_dict = format_dict_to_dataset(pca_im, arr['mask'],
+                                          arr['proba'], arr['cls'])
+        x.append(pca_dict)
+
+        # horizontaly fliped imaged dict
+        flip_arr = flip_data(arr)
+        x.append(flip_arr)
+
+        for dict_x in x:
+            yield dict_x
 
 
 def imshow_noax(img, normalize=True):
