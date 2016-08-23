@@ -61,7 +61,14 @@ def train_and_eval(model, X_train, y_train, X_test, y_test,
     print('Finished training.')
 
     print('\nComputing test score.')
-    score = model.evaluate(X_test, y_test, verbose=0)
-    msg = 'Test {}: ' + score_format
-    print(msg.format(score_name, score))
+    from timeit import default_timer as timer
+    times = []
+    for i in range(10):
+        start = timer()
+        score = model.evaluate(X_test, y_test, verbose=0)
+        end = timer()
+        times.append((end - start))
+    times = np.array(times)
+    msg = 'Test {}: ' + score_format + ' in {} ({})'
+    print(msg.format(score_name, score, times.mean(), times.std()))
     return history
