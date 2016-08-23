@@ -2,6 +2,7 @@ import glob
 import os.path
 import warnings
 import cv2 as cv
+from matplotlib import pyplot as plt
 import numpy as np
 from keras.utils.np_utils import to_categorical
 
@@ -123,9 +124,9 @@ def add_color_noise(batch, eigenvalues, eigenvectors):
         norm_data = batch.astype('float32') / 255.0
     else:
         norm_data = batch
-    alpha = np.random.randn(norm_data.shape[0], 3) * 0.1
+    alpha = np.random.randn(3) * 0.1
     noise = eigenvectors.dot((eigenvalues * alpha).T)
-    norm_data += noise[:, np.newaxis, np.newaxis, :].T
+    norm_data += noise
     return norm_data
 
 
@@ -141,6 +142,123 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
             warnings.warn(msg)
             continue
         yield load_image_for_dataset(file)
+
+
+def load_augmented_dataset(folder, eigenval, eigenvectors, img_ext='.png',
+                           mask_ext='.trn', resize=(240, 240)):
+    X = []
+    y = []
+    glob_selector = '{}/*{}'.format(folder, img_ext)
+    for file in glob.glob(glob_selector):
+        mask_filename = '{}{}'.format(file, mask_ext)
+        if not os.path.exists(mask_filename):
+            continue
+        arr = load_image_for_dataset(file)
+        arr['img'] = cv.resize(arr['img'], resize)
+        gray_im = cv.cvtColor(arr['img'], cv.COLOR_BGR2GRAY)
+        blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
+
+        blured_im = cv.GaussianBlur(arr['img'], (3, 3),
+                                    blur_amount, blur_amount)
+        pca_im = add_color_noise(arr['img'], eigenval, eigenvectors)
+        X.append((arr['img']/255.0).T)
+        # sligtly blured imaged
+        X.append((blured_im/255.0).T)
+        # imaged with changed color values based on PCA of dataset
+        X.append((pca_im).T)
+        # horizontaly fliped imaged
+        X.append((cv.flip(arr['img'], 1)/255.0).T)
+        c = np.zeros(11)
+        if arr['cls'] == -1:
+            c[10] = -1
+        else:
+            c[arr['cls']] = 1
+        for i in range(4):
+            y.append(c)
+    return np.array(X), np.array(y)
+
+
+def blur_image(image):
+    gray_im = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
+    return cv.GaussianBlur(image, (3, 3), blur_amount, blur_amount)
+
+
+def flip_data(data):
+    flip_im = cv.flip(data['img'], 1)
+    flip_mask = cv.flip(data['mask'], 1)
+    flip_proba = mask_to_proba(flip_mask)
+    flip_cls = np.argmax(flip_proba) if np.max(flip_proba) != 0 else -1
+    return {
+        "img": flip_im,
+        "mask": flip_mask,
+        "proba": flip_proba,
+        "cls": flip_cls
+    }
+
+
+def format_dict_to_dataset(img, mask, proba, cls):
+    return {
+        "img": img,
+        "mask": mask,
+        "proba": proba,
+        "cls": cls
+    }
+
+
+def augmented_dataset_from_folder(folder, eigenval, eigenvectors,
+                                  img_ext='.png', mask_ext='.trn',
+                                  resize=(240, 240)):
+    glob_selector = '{}/*{}'.format(folder, img_ext)
+    for file in glob.glob(glob_selector):
+        x = []
+        mask_filename = '{}{}'.format(file, mask_ext)
+        if not os.path.exists(mask_filename):
+            continue
+
+        arr = load_image_for_dataset(file)
+        if resize is not None:
+            arr['img'] = cv.resize(arr['img'], resize)
+
+        blured_im = (blur_image(arr['img']))
+        pca_im = add_color_noise(arr['img'], eigenval, eigenvectors)
+
+        # original image dict
+        x.append(arr)
+
+        # sligtly blured imaged
+        dict_blured = format_dict_to_dataset(blured_im, arr['mask'],
+                                             arr['proba'], arr['cls'])
+        x.append(dict_blured)
+
+        # imaged with changed color values based on PCA of dataset
+        pca_dict = format_dict_to_dataset(pca_im, arr['mask'],
+                                          arr['proba'], arr['cls'])
+        x.append(pca_dict)
+
+        # horizontaly fliped imaged dict
+        flip_arr = flip_data(arr)
+        x.append(flip_arr)
+
+        for dict_x in x:
+            yield dict_x
+
+
+def imshow_noax(img, normalize=True):
+    """ Tiny helper to show images as uint8 and remove axis labels """
+    if normalize:
+        img_max, img_min = np.max(img), np.min(img)
+        img = 255.0 * (img - img_min) / (img_max - img_min)
+    plt.imshow(img.T.astype('uint8'))
+    plt.gca().axis('off')
+
+
+def show_dataset_samples(X, y, nb_samples=5):
+    imgs = X[(np.random.rand(nb_samples*nb_samples) * 100).astype('uint8')]
+    for i in range(nb_samples * nb_samples):
+        plt.subplot(nb_samples, nb_samples, i+1)
+        imshow_noax(imgs[i])
+    plt.show()
 
 
 def bit_to_two_cls(x):
