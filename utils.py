@@ -26,13 +26,20 @@ def xml_to_numpy(filename):
     return np.asarray(cv.cv.Load(filename)) * 255
 
 
-def mask_to_proba(mask, classes=10, type='sum'):
+def mask_to_proba(mask, classes=10, type='sum', delims=None):
     h, w = mask.shape
     w_per_class = w // classes
     counts = []
-    for c in range(classes):
-        selection = mask[0:h, c*w_per_class:(c+1)*w_per_class]
-        counts.append(np.count_nonzero(selection))
+    if delims is None:
+        for c in range(classes):
+            selection = mask[0:h, c*w_per_class:(c+1)*w_per_class]
+            counts.append(np.count_nonzero(selection))
+    else:
+        i = 0
+        for d in delims:
+            selection = mask[0:h, i:i+d]
+            counts.append(np.count_nonzero(selection))
+            i += d
 
     counts = np.asarray(counts)
     sum = float(np.sum(counts))
@@ -65,11 +72,11 @@ def visualize_mask(image, mask):
     return cv.bitwise_and(image, image, mask=mask)
 
 
-def load_image_for_dataset(filename):
+def load_image_for_dataset(filename, classes=10, delims=None):
     trn_filename = '{}.trn'.format(filename)
     img = cv.imread(filename)
     mask = trn_to_numpy(trn_filename)
-    proba = mask_to_proba(mask)
+    proba = mask_to_proba(mask, classes=classes, delims=delims)
     cls = np.argmax(proba) if np.max(proba) != 0 else -1
     return {
         "img": img,
@@ -144,7 +151,8 @@ def dataset_from_folder(folder, img_ext='.png', mask_ext='.trn'):
 
 
 def load_augmented_dataset(folder, eigenval, eigenvectors,
-                           img_ext='.png', mask_ext='.trn'):
+                           img_ext='.png', mask_ext='.trn', delims=None,
+                           classes=10):
     X = []
     y = []
     glob_selector = '{}/*{}'.format(folder, img_ext)
@@ -152,7 +160,7 @@ def load_augmented_dataset(folder, eigenval, eigenvectors,
         mask_filename = '{}{}'.format(file, mask_ext)
         if not os.path.exists(mask_filename):
             continue
-        arr = load_image_for_dataset(file)
+        arr = load_image_for_dataset(file, delims=delims, classes=classes)
         arr['img'] = cv.resize(arr['img'], (240, 240))
         gray_im = cv.cvtColor(arr['img'], cv.COLOR_BGR2GRAY)
         blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
@@ -167,9 +175,9 @@ def load_augmented_dataset(folder, eigenval, eigenvectors,
         X.append((pca_im).T)
         # horizontaly fliped imaged
         X.append((cv.flip(arr['img'], 1)/255.0).T)
-        c = np.zeros(11)
+        c = np.zeros(classes)
         if arr['cls'] == -1:
-            c[10] == -1
+            c[classes - 1] = 1
         else:
             c[arr['cls']] = 1
         for i in range(4):

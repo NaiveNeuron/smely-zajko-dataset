@@ -10,8 +10,18 @@ import utils
 np.random.seed(1337)  # for reproducibility
 
 batch_size = 32
-nb_epoch = 1
+nb_epoch = 50
 
+# tested delims
+# delims = [60, 55, 45, 45, 55, 60]
+# delims = [90, 70, 70, 90]
+delims = [120, 80, 120]
+# delims = None
+
+classes = 10
+
+if delims is not None:
+    classes = len(delims)
 
 # eigenvalues & eigenvectors for plzen dataset
 einval = np.array([0.91650828, 0.0733283, 0.04866549])
@@ -19,10 +29,18 @@ vec = np.array([[-0.5448285, 0.82209843, 0.16527574],
                 [-0.60238846, -0.24659869, -0.75915561],
                 [-0.58334386, -0.51316981, 0.6295766]])
 
-X_train, y_train = utils.load_augmented_dataset('./plzen/train', einval, vec)
-X_test, y_test = utils.load_augmented_dataset('./plzen/test', einval, vec)
+X_train, y_train = utils.load_augmented_dataset('./plzen/train', einval, vec,
+                                                classes=classes, delims=delims)
+X_test, y_test = utils.load_augmented_dataset('./plzen/test', einval, vec,
+                                              classes=classes, delims=delims)
 print("Dataset loaded X shape: {}, y shape: {}".format(X_train.shape,
                                                        y_train.shape))
+_, y = np.nonzero(y_train)
+print(np.histogram(y, bins=range(classes + 1)))
+
+_, y = np.nonzero(y_test)
+print(np.histogram(y, bins=range(classes + 1)))
+
 utils.show_dataset_samples(X_train, y_train)
 
 model = Sequential()
@@ -52,7 +70,7 @@ model.add(Dense(100))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Dense(11))
+model.add(Dense(classes + 1))
 model.add(Activation('softmax'))
 
 adam = Adam(lr=0.001)
