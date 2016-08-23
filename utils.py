@@ -4,6 +4,7 @@ import warnings
 import cv2 as cv
 from matplotlib import pyplot as plt
 import numpy as np
+from keras.utils.np_utils import to_categorical
 
 
 def trn_to_numpy(filename):
@@ -258,3 +259,7 @@ def show_dataset_samples(X, y, nb_samples=5):
         plt.subplot(nb_samples, nb_samples, i+1)
         imshow_noax(imgs[i])
     plt.show()
+
+
+def bit_to_two_cls(x):
+    return to_categorical(x, nb_classes=2)
