@@ -65,5 +65,8 @@ history = model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch,
 model_utils.plot_history(history, [['loss', 'val_loss'], ['acc', 'val_acc']],
                                   [['o', 'o'], ['-o', '-go']])
 
+weights = model.layers[0].get_weights()[0]
+model_utils.show_weights(weights)
+
 loss, acc = model.evaluate(X_test, y_test, verbose=1)
 print("\nloss: {:.4}, acc: {:.4}".format(loss, acc))
