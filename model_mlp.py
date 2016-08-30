@@ -19,39 +19,41 @@ vec = np.array([[-0.5448285, 0.82209843, 0.16527574],
 dataset = utils.augmented_dataset_from_folder('./plzen/train', einval,
                                               vec, resize=None)
 X_train, y_train = model_utils.prepare_pixelized_dataset(dataset)
+y_train = y_train.reshape(-1)
 
 dataset = utils.augmented_dataset_from_folder('./plzen/test', einval,
                                               vec, resize=None)
 X_test, y_test = model_utils.prepare_pixelized_dataset(dataset)
+y_test = y_test.reshape(-1)
 
 print("Done loading dataset X: {}, y: {}".format(X_train.shape, y_train.shape))
 
 
 print('\n')
-model = models.mlp(n_input=75, architecture=[(8, 'sigmoid'), (1, 'sigmoid')])
+model = models.mlp(n_input=75, architecture=[(8, 'relu'), (1, 'sigmoid')])
 model_utils.train_and_eval(model, X_train, y_train, X_test, y_test,
                            batch_size=batch_size, nb_epoch=nb_epoch)
 
 print('\n')
-model = models.mlp(n_input=75, architecture=[(12, 'sigmoid'), (1, 'sigmoid')])
+model = models.mlp(n_input=75, architecture=[(12, 'relu'), (1, 'sigmoid')])
 model_utils.train_and_eval(model, X_train, y_train, X_test, y_test,
                            batch_size=batch_size, nb_epoch=nb_epoch)
 
 print('\n')
-model = models.mlp(n_input=75, architecture=[(20, 'sigmoid'), (1, 'sigmoid')])
+model = models.mlp(n_input=75, architecture=[(20, 'relu'), (1, 'sigmoid')])
 model_utils.train_and_eval(model, X_train, y_train, X_test, y_test,
                            batch_size=batch_size, nb_epoch=nb_epoch)
 
 print('\n')
-model = models.mlp(n_input=75, architecture=[(6, 'sigmoid'),
-                                             (6, 'sigmoid'),
+model = models.mlp(n_input=75, architecture=[(6, 'relu'),
+                                             (6, 'relu'),
                                              (1, 'sigmoid')])
 model_utils.train_and_eval(model, X_train, y_train, X_test, y_test,
                            batch_size=batch_size, nb_epoch=nb_epoch)
 
 print('\n')
-model = models.mlp(n_input=75, architecture=[(10, 'sigmoid'),
-                                             (10, 'sigmoid'),
+model = models.mlp(n_input=75, architecture=[(10, 'relu'),
+                                             (10, 'relu'),
                                              (1, 'sigmoid')])
 model_utils.train_and_eval(model, X_train, y_train, X_test, y_test,
                            batch_size=batch_size, nb_epoch=nb_epoch)

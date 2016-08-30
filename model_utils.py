@@ -3,6 +3,8 @@ from __future__ import print_function
 import math
 from matplotlib import pyplot as plt
 import numpy as np
+from timeit import default_timer as timer
+from sklearn.metrics import classification_report
 
 
 def prepare_pixelized_dataset(dataset, window_x=5, window_y=5,
@@ -65,7 +67,6 @@ def train_and_eval(model, X_train, y_train, X_test, y_test,
     print('Finished training.')
 
     print('\nComputing test score.')
-    from timeit import default_timer as timer
     times = []
     for i in range(10):
         start = timer()
@@ -75,6 +76,9 @@ def train_and_eval(model, X_train, y_train, X_test, y_test,
     times = np.array(times)
     msg = 'Test {}: ' + score_format + ' in {} ({})'
     print(msg.format(score_name, score, times.mean(), times.std()))
+
+    y_pred = np.round(model.predict(X_test))
+    print(classification_report(y_test, y_pred))
     return history
 
 
