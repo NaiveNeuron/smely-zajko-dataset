@@ -92,7 +92,7 @@ def load_dataset_as_numpy(folder, img_ext='.png'):
 def calc_PCA(data):
     # normalize data before calculating PCA
     if (data > 1).any():
-        norm_data = data.astype('float32') / 255.0
+        norm_data = data.astype('float16') / 255.0
     else:
         norm_data = data
     n, h, w, c = norm_data.shape
@@ -121,7 +121,7 @@ def flip_batch(batch, batch_mask):
 
 def add_color_noise(batch, eigenvalues, eigenvectors):
     if (batch > 1).any():
-        norm_data = batch.astype('float32') / 255.0
+        norm_data = batch.astype('float16') / 255.0
     else:
         norm_data = batch
     alpha = np.random.randn(3) * 0.1
@@ -219,6 +219,7 @@ def augmented_dataset_from_folder(folder, eigenval, eigenvectors,
         arr = load_image_for_dataset(file)
         if resize is not None:
             arr['img'] = cv.resize(arr['img'], resize)
+        # arr['img'] = cv.cvtColor(arr['img'], cv.COLOR_BGR2LAB)
 
         blured_im = (blur_image(arr['img']))
         pca_im = add_color_noise(arr['img'], eigenval, eigenvectors)
