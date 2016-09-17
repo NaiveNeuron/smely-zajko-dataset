@@ -3,12 +3,13 @@ from __future__ import print_function
 import math
 from matplotlib import pyplot as plt
 import numpy as np
+import utils
 from skimage.util.shape import view_as_windows
 
 
 def prepare_pixelized_dataset(dataset, window, stride=2,
                               y_applied_function=np.asarray,
-                              image_by_image=False):
+                              image_by_image=False, regression=True):
     Xs = []
     ys = []
     Zs = []
@@ -23,9 +24,12 @@ def prepare_pixelized_dataset(dataset, window, stride=2,
         if mask is not None:
             ms = np.squeeze(view_as_windows(mask, (window_x, window_y),
                                             step=stride))
-            rows, cols = ms.shape[:2]
-            ms = np.resize(ms, (rows * cols, window_x * window_y))
-            nums = np.asarray((ms.mean(axis=1) > 0.5), dtype='uint8')
+            if regression is False:
+                rows, cols = ms.shape[:2]
+                ms = np.resize(ms, (rows * cols, window_x * window_y))
+                nums = np.asarray((ms.mean(axis=1) > 0.5), dtype='uint8')
+            else:
+                nums = ms
             ys.append(y_applied_function(nums))
     Xs = np.asarray(Xs)
     ys = np.squeeze(ys)
@@ -107,3 +111,16 @@ def show_weights(weights):
     plt.axis('off')
     plt.gcf().set_size_inches(5, 5)
     plt.show()
+
+
+def reshape_dataset(data, window, regression=True):
+    window_x, window_y = window
+    X, y = data[:2]
+    num_im, rows, cols = X.shape[:3]
+    X = np.resize(X, (num_im * rows * cols, window_x, window_y, 3))
+    X = np.swapaxes(np.rollaxis(X, 3, 1), 2, 3)
+    if regression is True:
+        y = np.resize(y, (num_im * rows * cols, window_x * window_y))
+    else:
+        y = utils.bit_to_two_cls(np.resize(y, (num_im * rows * cols,)))
+    return X, y
