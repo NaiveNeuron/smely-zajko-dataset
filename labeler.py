@@ -44,10 +44,8 @@ def get_line_coords(img):
     width = img.shape[1]
     x_1, y_1 = line_points[0]
     x_c, y_c = line_points[1] - line_points[0]
-    x_n1 = -x_1 / x_c
-    x_n2 = (width - x_1) / x_c
-    y_new1 = y_1 + x_n1 * y_c
-    y_new2 = y_1 + x_n2 * y_c
+    y_new1 = y_1 + (-x_1 * y_c / x_c)
+    y_new2 = y_1 + ((width - x_1) * y_c / x_c)
     return (0, y_new1), (width, y_new2)
 
 
