@@ -21,7 +21,7 @@ vec = np.array([[-0.5448285, 0.82209843, 0.16527574],
                 [-0.60238846, -0.24659869, -0.75915561],
                 [-0.58334386, -0.51316981, 0.6295766]])
 
-dataset_train = utils.augmented_dataset_from_folder('./plzen/speed_train',
+dataset_train = utils.augmented_dataset_from_folder('./plzen/train',
                                                     einval, vec, resize=None)
 train_data = model_utils.prepare_pixelized_dataset(dataset_train, window,
                                                    stride=stride,
@@ -30,7 +30,7 @@ train_data = model_utils.prepare_pixelized_dataset(dataset_train, window,
 X_train, y_train = model_utils.reshape_dataset(train_data, window,
                                                regression=regression)
 
-dataset_test = utils.augmented_dataset_from_folder('./plzen/speed_test',
+dataset_test = utils.augmented_dataset_from_folder('./plzen/test',
                                                    einval, vec, resize=None)
 
 test_data = model_utils.prepare_pixelized_dataset(dataset_test, window,

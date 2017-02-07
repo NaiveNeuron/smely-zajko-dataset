@@ -45,7 +45,7 @@ def plot_history(history, plots=[['loss', 'val_loss']], format=[['o', 'o']]):
         plt.xlabel('epoch')
         plt.ylabel(metric)
         plt.legend()
-        if i != len(plots)-1:
+        if i != len(plots) - 1:
             plt.figure()
     plt.show()
 
@@ -113,7 +113,8 @@ def show_weights(weights):
     plt.show()
 
 
-def reshape_dataset(data, window, regression=True):
+def reshape_dataset(data, window, regression=True,
+                    y_applied_function=utils.bit_to_two_cls):
     window_x, window_y = window
     X, y = data[:2]
     num_im, rows, cols = X.shape[:3]
@@ -122,5 +123,5 @@ def reshape_dataset(data, window, regression=True):
     if regression is True:
         y = np.resize(y, (num_im * rows * cols, window_x * window_y))
     else:
-        y = utils.bit_to_two_cls(np.resize(y, (num_im * rows * cols,)))
+        y = y_applied_function(np.resize(y, (num_im * rows * cols,)))
     return X, y
