@@ -32,7 +32,7 @@ def mask_to_proba(mask, classes=10, type='sum'):
     w_per_class = w // classes
     counts = []
     for c in range(classes):
-        selection = mask[0:h, c*w_per_class:(c+1)*w_per_class]
+        selection = mask[0:h, c * w_per_class:(c + 1) * w_per_class]
         counts.append(np.count_nonzero(selection))
 
     counts = np.asarray(counts)
@@ -40,7 +40,7 @@ def mask_to_proba(mask, classes=10, type='sum'):
     if type == 'max':
         sum = float(np.max(counts))
 
-    return counts/sum if sum != 0 else counts
+    return counts / sum if sum != 0 else counts
 
 
 def visualize_proba(proba, shape, color=(0, 0, 255)):
@@ -49,8 +49,8 @@ def visualize_proba(proba, shape, color=(0, 0, 255)):
     img = np.zeros((h, w, ch), np.uint8)
     w_per_class = w // classes
     for c, p in enumerate(proba):
-        top = int(h - h*p)
-        cv.rectangle(img, (c*w_per_class, top), ((c+1)*w_per_class, h),
+        top = int(h - h * p)
+        cv.rectangle(img, (c * w_per_class, top), ((c + 1) * w_per_class, h),
                      color, -1)
     return img
 
@@ -92,7 +92,7 @@ def load_dataset_as_numpy(folder, img_ext='.png'):
 def calc_PCA(data):
     # normalize data before calculating PCA
     if (data > 1).any():
-        norm_data = data.astype('float32') / 255.0
+        norm_data = data.astype('float16') / 255.0
     else:
         norm_data = data
     n, h, w, c = norm_data.shape
@@ -121,7 +121,7 @@ def flip_batch(batch, batch_mask):
 
 def add_color_noise(batch, eigenvalues, eigenvectors):
     if (batch > 1).any():
-        norm_data = batch.astype('float32') / 255.0
+        norm_data = batch.astype('float16') / 255.0
     else:
         norm_data = batch
     alpha = np.random.randn(3) * 0.1
@@ -161,13 +161,13 @@ def load_augmented_dataset(folder, eigenval, eigenvectors, img_ext='.png',
         blured_im = cv.GaussianBlur(arr['img'], (3, 3),
                                     blur_amount, blur_amount)
         pca_im = add_color_noise(arr['img'], eigenval, eigenvectors)
-        X.append((arr['img']/255.0).T)
+        X.append((arr['img'] / 255.0).T)
         # sligtly blured imaged
-        X.append((blured_im/255.0).T)
+        X.append((blured_im / 255.0).T)
         # imaged with changed color values based on PCA of dataset
         X.append((pca_im).T)
         # horizontaly fliped imaged
-        X.append((cv.flip(arr['img'], 1)/255.0).T)
+        X.append((cv.flip(arr['img'], 1) / 255.0).T)
         c = np.zeros(11)
         if arr['cls'] == -1:
             c[10] = -1
@@ -219,6 +219,7 @@ def augmented_dataset_from_folder(folder, eigenval, eigenvectors,
         arr = load_image_for_dataset(file)
         if resize is not None:
             arr['img'] = cv.resize(arr['img'], resize)
+        # arr['img'] = cv.cvtColor(arr['img'], cv.COLOR_BGR2LAB)
 
         blured_im = (blur_image(arr['img']))
         pca_im = add_color_noise(arr['img'], eigenval, eigenvectors)
@@ -254,9 +255,9 @@ def imshow_noax(img, normalize=True):
 
 
 def show_dataset_samples(X, y, nb_samples=5):
-    imgs = X[(np.random.rand(nb_samples*nb_samples) * 100).astype('uint8')]
+    imgs = X[(np.random.rand(nb_samples * nb_samples) * 100).astype('uint8')]
     for i in range(nb_samples * nb_samples):
-        plt.subplot(nb_samples, nb_samples, i+1)
+        plt.subplot(nb_samples, nb_samples, i + 1)
         imshow_noax(imgs[i])
     plt.show()
 

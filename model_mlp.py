@@ -1,14 +1,16 @@
 from __future__ import print_function
-
 import utils
 import model_utils
 import models
-
 import numpy as np
+
+
 np.random.seed(1337)  # for reproducibility
 
 batch_size = 128
 nb_epoch = 30
+window = (5, 5)
+stride = 5
 
 # eigenvalues & eigenvectors for plzen dataset
 einval = np.array([0.91650828, 0.0733283, 0.04866549])
@@ -18,13 +20,25 @@ vec = np.array([[-0.5448285, 0.82209843, 0.16527574],
 
 dataset = utils.augmented_dataset_from_folder('./plzen/train', einval,
                                               vec, resize=None)
-X_train, y_train = model_utils.prepare_pixelized_dataset(dataset)
-y_train = y_train.reshape(-1)
+train_data = model_utils.prepare_pixelized_dataset(dataset, window,
+                                                   stride=stride,
+                                                   regression=False,
+                                                   image_by_image=True)
+X_train, y_train = model_utils.reshape_dataset(train_data, window,
+                                               regression=False,
+                                               y_applied_function=np.asarray)
+X_train = np.reshape(X_train, (X_train.shape[0], -1))
 
 dataset = utils.augmented_dataset_from_folder('./plzen/test', einval,
                                               vec, resize=None)
-X_test, y_test = model_utils.prepare_pixelized_dataset(dataset)
-y_test = y_test.reshape(-1)
+test_data = model_utils.prepare_pixelized_dataset(dataset, window,
+                                                  stride=stride,
+                                                  regression=False,
+                                                  image_by_image=True)
+X_test, y_test = model_utils.reshape_dataset(test_data, window,
+                                             regression=False,
+                                             y_applied_function=np.asarray)
+X_test = np.reshape(X_test, (X_test.shape[0], -1))
 
 print("Done loading dataset X: {}, y: {}".format(X_train.shape, y_train.shape))
 

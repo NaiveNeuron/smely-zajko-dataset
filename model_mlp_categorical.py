@@ -1,19 +1,18 @@
 from __future__ import print_function
-
-from utils import (dataset_from_folder, bit_to_two_cls,
-                   augmented_dataset_from_folder)
 from model_utils import prepare_pixelized_dataset, train_and_eval
+from utils import augmented_dataset_from_folder
 import models
-
 import numpy as np
+import model_utils
+
 np.random.seed(1337)  # for reproducibility
 
 batch_size = 128
-nb_epoch = 20
-
+nb_epoch = 30
 verbose = 0
-
 loss = 'mse'
+window = (5, 5)
+stride = 5
 
 # eigenvalues & eigenvectors for plzen dataset
 einval = np.array([0.91650828, 0.0733283, 0.04866549])
@@ -23,13 +22,22 @@ vec = np.array([[-0.5448285, 0.82209843, 0.16527574],
 
 dataset = augmented_dataset_from_folder('./plzen/train', einval,
                                         vec, resize=None)
-X_train, y_train = prepare_pixelized_dataset(dataset,
-                                             y_applied_function=bit_to_two_cls)
+train_data = prepare_pixelized_dataset(dataset, window,
+                                       stride=stride,
+                                       regression=False,
+                                       image_by_image=True)
+X_train, y_train = model_utils.reshape_dataset(train_data, window,
+                                               regression=False)
+X_train = np.reshape(X_train, (X_train.shape[0], -1))
 
 dataset = augmented_dataset_from_folder('./plzen/test', einval,
                                         vec, resize=None)
-X_test, y_test = prepare_pixelized_dataset(dataset,
-                                           y_applied_function=bit_to_two_cls)
+test_data = prepare_pixelized_dataset(dataset, window,
+                                      stride=stride,
+                                      regression=False,
+                                      image_by_image=True)
+X_test, y_test = model_utils.reshape_dataset(test_data, window,
+                                             regression=False)
 
 print("Done loading dataset X: {}, y: {}".format(X_train.shape, y_train.shape))
 print("Done loading dataset X_test: {}, y_test: {}".format(X_test.shape,

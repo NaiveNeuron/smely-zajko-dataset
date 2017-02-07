@@ -1,46 +1,42 @@
 from __future__ import print_function
-
-import math
 from matplotlib import pyplot as plt
-import numpy as np
 from timeit import default_timer as timer
 from sklearn.metrics import classification_report
+from skimage.util.shape import view_as_windows
+import math
+import numpy as np
+import utils
 
 
-def prepare_pixelized_dataset(dataset, window_x=5, window_y=5,
+def prepare_pixelized_dataset(dataset, window, stride=2,
                               y_applied_function=np.asarray,
-                              image_by_image=False):
+                              image_by_image=False, regression=True):
     Xs = []
     ys = []
     Zs = []
+    window_x, window_y = window
     for datum in dataset:
         img = datum['img']
         mask = datum['mask']
-        Xs.append(prepare_pixelized_image(img, window_x, window_y))
+        Xs.append(np.squeeze(view_as_windows(img, (window_x, window_y, 3),
+                                             step=stride)))
         if image_by_image:
             Zs.append(img)
         if mask is not None:
-            ms = prepare_pixelized_image(mask, window_x, window_y)
-            nums = np.asarray((ms.mean(axis=1) > 0.5), dtype='int32')
+            ms = np.squeeze(view_as_windows(mask, (window_x, window_y),
+                                            step=stride))
+            if regression is False:
+                rows, cols = ms.shape[:2]
+                ms = np.resize(ms, (rows * cols, window_x * window_y))
+                nums = np.asarray((ms.mean(axis=1) > 0.5), dtype='uint8')
+            else:
+                nums = ms
             ys.append(y_applied_function(nums))
     Xs = np.asarray(Xs)
     ys = np.squeeze(ys)
     if image_by_image:
         return Xs, ys, Zs
     return Xs.reshape(-1, Xs.shape[-1]), ys.reshape(-1, ys.shape[-1])
-
-
-def prepare_pixelized_image(img, window_x=5, window_y=5):
-    h, w = img.shape[:2]
-    num_windows_x = w//window_x
-    num_windows_y = h//window_y
-    if img.ndim == 3:
-        res = img.reshape(num_windows_y, window_x, -1, window_y, img.shape[-1])
-        res = res.swapaxes(1, 2).reshape(-1, window_x, window_y, img.shape[-1])
-    else:
-        res = img.reshape(num_windows_y, window_x, -1, window_y)
-        res = res.swapaxes(1, 2).reshape(-1, window_x, window_y)
-    return res.reshape(num_windows_x * num_windows_y, -1) / 255.0
 
 
 def plot_history(history, plots=[['loss', 'val_loss']], format=[['o', 'o']]):
@@ -50,7 +46,7 @@ def plot_history(history, plots=[['loss', 'val_loss']], format=[['o', 'o']]):
         plt.xlabel('epoch')
         plt.ylabel(metric)
         plt.legend()
-        if i != len(plots)-1:
+        if i != len(plots) - 1:
             plt.figure()
     plt.show()
 
@@ -125,3 +121,17 @@ def show_weights(weights):
     plt.axis('off')
     plt.gcf().set_size_inches(5, 5)
     plt.show()
+
+
+def reshape_dataset(data, window, regression=True,
+                    y_applied_function=utils.bit_to_two_cls):
+    window_x, window_y = window
+    X, y = data[:2]
+    num_im, rows, cols = X.shape[:3]
+    X = np.resize(X, (num_im * rows * cols, window_x, window_y, 3))
+    X = np.swapaxes(np.rollaxis(X, 3, 1), 2, 3)
+    if regression is True:
+        y = np.resize(y, (num_im * rows * cols, window_x * window_y))
+    else:
+        y = y_applied_function(np.resize(y, (num_im * rows * cols,)))
+    return X, y
