@@ -5,7 +5,7 @@ import cv2 as cv
 import numpy as np
 
 
-horz = 0
+horz = False
 mask = None
 color = None
 flood = False
@@ -39,23 +39,13 @@ def floodify(img, color, x, y):
     return tmp_img
 
 
-def get_line_coords(img):
-    global line_points
-    width = img.shape[1]
-    x_1, y_1 = line_points[0]
-    x_c, y_c = line_points[1] - line_points[0]
-    y_new1 = y_1 + (-x_1 * y_c / x_c)
-    y_new2 = y_1 + ((width - x_1) * y_c / x_c)
-    return (0, y_new1), (width, y_new2)
-
-
 # mouse callback function
 def draw(event, x, y, flags, param):
     global mask, horz, color, flood, rec_size, line_points
     if event == cv.EVENT_LBUTTONDOWN:
         color = (255, 255, 255)
-        if horz != 0:
-            line_points[horz - 1] = [x, y]
+        if horz is True:
+            color = (255, 0, 0)
         elif flood is True:
             mask[np.nonzero(floodify(mask, color, x, y))] = 255
 
@@ -69,12 +59,8 @@ def draw(event, x, y, flags, param):
                            (x + rec_size, y + rec_size), color, -1)
 
     if event == cv.EVENT_LBUTTONUP or event == cv.EVENT_RBUTTONUP:
-        if horz == 2:
-            p1, p2 = get_line_coords(mask)
-            pts = np.array([p1, p2, (mask.shape[1], 0), (0, 0)])
-            cv.fillPoly(mask, [pts], (255, 0, 0))
-            horz %= 2
         flood = False
+        horz = False
         color = None
 
 
@@ -90,7 +76,7 @@ def main_event_loop(image):
             flood = True
         # add new point to horizont keybind
         if k == ord('h'):
-            horz += 1
+            horz = True
         # enlarge the brush
         if k == ord('+'):
             rec_size += 1
