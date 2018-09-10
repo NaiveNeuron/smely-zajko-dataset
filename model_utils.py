@@ -1,10 +1,14 @@
 from __future__ import print_function
+import matplotlib as mpl
+mpl.use('svg')
 from matplotlib import pyplot as plt
 from timeit import default_timer as timer
 from sklearn.metrics import classification_report
 from skimage.util.shape import view_as_windows
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 import math
 import numpy as np
+import cv2 as cv
 import utils
 
 
@@ -27,8 +31,10 @@ def prepare_pixelized_dataset(dataset, window, stride=2,
                                             step=stride))
             if regression is False:
                 rows, cols = ms.shape[:2]
-                ms = np.resize(ms, (rows * cols, window_x * window_y))
-                nums = np.asarray((ms.mean(axis=1) > 0.5), dtype='uint8')
+                ms = np.resize(ms, (rows * cols, window_x, window_y))
+                # nums = np.asarray((ms.mean(axis=1) > 0.5), dtype='uint8')
+                nums = ms[:, window_x / 2, window_y / 2] > 0
+                nums = np.asarray(nums, dtype='uint8')
             else:
                 nums = ms
             ys.append(y_applied_function(nums))
@@ -53,13 +59,17 @@ def plot_history(history, plots=[['loss', 'val_loss']], format=[['o', 'o']]):
 
 def train_and_eval(model, X_train, y_train, X_test, y_test,
                    batch_size=128, nb_epoch=30,
-                   verbose=0, score_name='MSE', score_format='{}'):
+                   verbose=1, score_name='MSE', score_format='{}',
+                   early_stopping_monitor='val_acc'):
 
     print('Training architecture: {}'.format(model.arch))
+    earlystop = EarlyStopping(monitor=early_stopping_monitor, patience=5, verbose=0)
+
     history = model.fit(X_train, y_train,
                         batch_size=batch_size,
                         nb_epoch=nb_epoch, verbose=verbose,
-                        validation_split=0.1)
+                        validation_split=0.1,
+                        callbacks=[earlystop])
     print('Finished training.')
 
     print('\nComputing test score.')
@@ -74,7 +84,7 @@ def train_and_eval(model, X_train, y_train, X_test, y_test,
     print(msg.format(score_name, score, times.mean(), times.std()))
 
     y_pred = np.round(model.predict(X_test))
-    print(classification_report(y_test, y_pred))
+    print(classification_report(y_test, y_pred, digits=5))
     return history
 
 
@@ -114,13 +124,15 @@ def visualize_grid(Xs, ubound=255.0, padding=1):
     return grid
 
 
-def show_weights(weights):
+def show_weights(weights, outfile=None):
     grid = visualize_grid(weights.transpose(0, 2, 3, 1))
-    plt.rcParams['image.interpolation'] = 'nearest'
-    plt.imshow(grid.astype('uint8'))
-    plt.axis('off')
-    plt.gcf().set_size_inches(5, 5)
-    plt.show()
+    grid = cv.resize(grid, (0, 0), fx=20, fy=20, interpolation=cv.INTER_NEAREST) 
+    cv.imwrite('weights.png', grid.astype('uint8'))
+    # plt.rcParams['image.interpolation'] = 'nearest'
+    # plt.imshow(grid.astype('uint8'))
+    # plt.axis('off')       
+    # plt.gcf().set_size_inches(5, 5)
+    # plt.show()
 
 
 def reshape_dataset(data, window, regression=True,

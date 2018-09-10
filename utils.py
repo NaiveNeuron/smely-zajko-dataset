@@ -5,6 +5,30 @@ import cv2 as cv
 from matplotlib import pyplot as plt
 import numpy as np
 from keras.utils.np_utils import to_categorical
+import lmdb
+
+
+def numpy_to_lmdb(filename, X, y, map_size=None):
+    import caffe
+    n, ch = X.shape[:2]
+    if len(X.shape) <= 2:
+        w, h = 1, 1
+    else:
+        w, h = X.shape[2:]
+
+    if map_size is None:
+        map_size = X.nbytes * 10
+    env = lmdb.open(filename, map_size=map_size)
+    with env.begin(write=True) as txn:
+        for i, dat in enumerate(X):
+            datum = caffe.proto.caffe_pb2.Datum()
+            datum.channels = ch
+            datum.height = w
+            datum.width = h
+            datum.data = dat.tobytes()
+            datum.label = int(y[i])
+            str_id = '{:08}'.format(i)
+            txn.put(str_id.encode('ascii'), datum.SerializeToString())
 
 
 def trn_to_numpy(filename):
@@ -66,10 +90,15 @@ def visualize_mask(image, mask):
     return cv.bitwise_and(image, image, mask=mask)
 
 
-def load_image_for_dataset(filename):
-    trn_filename = '{}.trn'.format(filename)
+def load_image_for_dataset(filename, mask_name, resize=(240, 320)):
     img = cv.imread(filename)
-    mask = trn_to_numpy(trn_filename)
+    mask = cv.imread(mask_name)
+    mask = (mask == (255, 255, 255)).astype('uint8') * 255
+    mask = cv.cvtColor(mask, cv.COLOR_BGR2GRAY)
+    mask = cv.threshold(mask, 150, 255, cv.THRESH_BINARY)[1]
+    if resize is not None:
+        img = cv.resize(img, resize)
+        mask = cv.resize(mask, resize)
     proba = mask_to_proba(mask)
     cls = np.argmax(proba) if np.max(proba) != 0 else -1
     return {
@@ -153,7 +182,7 @@ def load_augmented_dataset(folder, eigenval, eigenvectors, img_ext='.png',
         mask_filename = '{}{}'.format(file, mask_ext)
         if not os.path.exists(mask_filename):
             continue
-        arr = load_image_for_dataset(file)
+        arr = load_image_for_dataset(file, mask_filename)
         arr['img'] = cv.resize(arr['img'], resize)
         gray_im = cv.cvtColor(arr['img'], cv.COLOR_BGR2GRAY)
         blur_amount = cv.Laplacian(gray_im, cv.CV_64F).var() / 1000.0
@@ -212,11 +241,11 @@ def augmented_dataset_from_folder(folder, eigenval, eigenvectors,
     glob_selector = '{}/*{}'.format(folder, img_ext)
     for file in glob.glob(glob_selector):
         x = []
-        mask_filename = '{}{}'.format(file, mask_ext)
+        mask_filename = '{}{}'.format(os.path.splitext(file)[0], mask_ext)
         if not os.path.exists(mask_filename):
             continue
 
-        arr = load_image_for_dataset(file)
+        arr = load_image_for_dataset(file, mask_filename)
         if resize is not None:
             arr['img'] = cv.resize(arr['img'], resize)
         # arr['img'] = cv.cvtColor(arr['img'], cv.COLOR_BGR2LAB)
@@ -263,4 +292,4 @@ def show_dataset_samples(X, y, nb_samples=5):
 
 
 def bit_to_two_cls(x):
-    return to_categorical(x, nb_classes=2)
+    return to_categorical(x, num_classes=2)
